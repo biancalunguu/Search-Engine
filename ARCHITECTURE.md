@@ -56,6 +56,4 @@ Components are the major structural building blocks in code. Each container from
 The code level details the specific classes, functions, and data models that implement the components. While this layer changes frequently and is usually excluded from high-level C4 diagrams, the following classes illustrate the internal structure of the **File Crawler Component**:
 
 * `DirectoryScanner`: Contains the core recursive methods to iterate through folders on the local drive.
-* `FileValidator`: Implements the logic to verify read permissions and filter paths against the `ConfigurationManager`'s ignore list.
-* `FileSystemNode`: A standardized data model representing a generic file or folder path.
-* `CircularReferenceHandler`: A utility class specifically designed to detect and safely break out of infinite directory loops.
+* `FileValidator`: Implements the logic to verify read permissions and filter paths.
