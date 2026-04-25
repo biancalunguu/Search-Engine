@@ -23,6 +23,25 @@ public class SearchApplication {
         this.engine = new QueryEngine();
     }
 
+    private void handleRankingCommand(String command) {
+        String[] parts = command.split("\\s+");
+
+        if (parts.length < 2) {
+            System.out.println("Current ranking: " + engine.getCurrentRankingStrategy());
+            System.out.println("Available rankings: " + engine.getAvailableRankingStrategies());
+            return;
+        }
+
+        String requestedStrategy = parts[1];
+
+        if (engine.setRankingStrategy(requestedStrategy)) {
+            System.out.println("Ranking changed to: " + engine.getCurrentRankingStrategy());
+        } else {
+            System.out.println("Unknown ranking strategy: " + requestedStrategy);
+            System.out.println("Available rankings: " + engine.getAvailableRankingStrategies());
+        }
+    }
+
     public void run() {
         System.out.println("\n  ==== Search Mode ==== (type 'exit' to return to menu)");
 
@@ -35,6 +54,11 @@ public class SearchApplication {
             }
 
             if (query.isBlank()) {
+                continue;
+            }
+
+            if (query.startsWith(":rank")) {
+                handleRankingCommand(query);
                 continue;
             }
 
