@@ -15,7 +15,7 @@ import java.util.List;
 public class SearchExecutor {
 
     private final Connection connection;
-    private final int        maxResults;
+    private final int maxResults;
 
     public SearchExecutor() throws SQLException {
         this.connection = DatabaseConnection.getInstance().getConnection();
@@ -26,6 +26,10 @@ public class SearchExecutor {
      * Executes the search and returns up to maxResults matching FileRecords.
      */
     public List<FileRecord> search(QueryParser.ParsedQuery query) throws SQLException {
+        if (query.hasQualifiedTerms()) {
+            return searchQualified(query);
+        }
+
         List<FileRecord> results = searchFullText(query);
 
         if (results.isEmpty()) {
@@ -39,9 +43,10 @@ public class SearchExecutor {
     private List<FileRecord> searchFullText(QueryParser.ParsedQuery query) throws SQLException {
         String sql = """
                 SELECT id, file_path, file_name, extension, size_bytes, last_modified,
-                       is_text_file, content, preview, content_hash, indexed_at
+                       is_text_file, content, preview, indexed_at, path_score
                 FROM files
                 WHERE MATCH(file_name, content) AGAINST (? IN BOOLEAN MODE)
+                ORDER BY path_score DESC, file_name ASC
                 LIMIT ?
                 """;
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
@@ -60,8 +65,9 @@ public class SearchExecutor {
         }
 
         String sql = "SELECT id, file_path, file_name, extension, size_bytes, last_modified, "
-                + "is_text_file, content, preview, content_hash, indexed_at "
-                + "FROM files WHERE " + where + " LIMIT " + maxResults;
+                + "is_text_file, content, preview, indexed_at, path_score "
+                + "FROM files WHERE " + where
+                + " ORDER BY path_score DESC, file_name ASC LIMIT " + maxResults;
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             int i = 1;
@@ -75,6 +81,53 @@ public class SearchExecutor {
         }
     }
 
+    /**
+     * Iteration 2 parser support.
+     * - content:x checks file_name or content
+     * - path:x checks file_path
+     * - unqualified words keep the old broad behavior
+     * Every term is joined with AND, including duplicate qualifiers.
+     */
+    private List<FileRecord> searchQualified(QueryParser.ParsedQuery query) throws SQLException {
+        StringBuilder where = new StringBuilder("1 = 1");
+
+        for (int i = 0; i < query.getGeneralTerms().size(); i++) {
+            where.append(" AND (file_name LIKE ? OR content LIKE ? OR file_path LIKE ?)");
+        }
+        for (int i = 0; i < query.getContentTerms().size(); i++) {
+            where.append(" AND (file_name LIKE ? OR content LIKE ?)");
+        }
+        for (int i = 0; i < query.getPathTerms().size(); i++) {
+            where.append(" AND file_path LIKE ?");
+        }
+
+        String sql = "SELECT id, file_path, file_name, extension, size_bytes, last_modified, "
+                + "is_text_file, content, preview, indexed_at, path_score "
+                + "FROM files WHERE " + where
+                + " ORDER BY path_score DESC, file_name ASC LIMIT " + maxResults;
+
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            int index = 1;
+
+            for (String term : query.getGeneralTerms()) {
+                String like = "%" + term + "%";
+                stmt.setString(index++, like);
+                stmt.setString(index++, like);
+                stmt.setString(index++, like);
+            }
+            for (String term : query.getContentTerms()) {
+                String like = "%" + term + "%";
+                stmt.setString(index++, like);
+                stmt.setString(index++, like);
+            }
+            for (String term : query.getPathTerms()) {
+                stmt.setString(index++, "%" + term + "%");
+            }
+
+            return mapResultSet(stmt.executeQuery());
+        }
+    }
+
     private List<FileRecord> mapResultSet(ResultSet rs) throws SQLException {
         List<FileRecord> list = new ArrayList<>();
         while (rs.next()) {
@@ -84,6 +137,7 @@ public class SearchExecutor {
             r.setFileName(rs.getString("file_name"));
             r.setExtension(rs.getString("extension"));
             r.setSizeBytes(rs.getLong("size_bytes"));
+            r.setPathScore(rs.getDouble("path_score"));
 
             Timestamp lastMod = rs.getTimestamp("last_modified");
             if (lastMod != null) r.setLastModified(lastMod.toLocalDateTime());
@@ -91,7 +145,6 @@ public class SearchExecutor {
             r.setTextFile(rs.getBoolean("is_text_file"));
             r.setContent(rs.getString("content"));
             r.setPreview(rs.getString("preview"));
-            r.setContentHash(rs.getString("content_hash"));
 
             Timestamp indexedAt = rs.getTimestamp("indexed_at");
             if (indexedAt != null) r.setIndexedAt(indexedAt.toLocalDateTime());

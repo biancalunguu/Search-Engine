@@ -81,19 +81,19 @@ public class DatabaseSynchronizer {
                     delete(path);
                     deleted++;
                 } catch (SQLException e) {
-                    System.err.println("[ERROR] Could not delete record: " + path
-                            + " — " + e.getMessage());
+                    System.err.println("[ERROR] Could not delete record: " + path + " — " + e.getMessage());
                     errors++;
                 }
             }
         }
     }
 
+    //I2 s2 added path score
     private void insert(FileRecord r) throws SQLException {
         String sql = """
                 INSERT INTO files
                     (file_path, file_name, extension, size_bytes, last_modified,
-                     is_text_file, content, preview, content_hash)
+                     is_text_file, content, preview, path_score)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
@@ -105,7 +105,7 @@ public class DatabaseSynchronizer {
             stmt.setBoolean(6, r.isTextFile());
             stmt.setString(7, r.getContent());
             stmt.setString(8, r.getPreview());
-            stmt.setString(9, r.getContentHash());
+            stmt.setDouble(9, r.getPathScore());
             stmt.executeUpdate();
         }
     }
@@ -120,7 +120,7 @@ public class DatabaseSynchronizer {
                     is_text_file  = ?,
                     content       = ?,
                     preview       = ?,
-                    content_hash  = ?,
+                    path_score    = ?,
                     indexed_at    = NOW()
                 WHERE file_path = ?
                 """;
@@ -132,7 +132,7 @@ public class DatabaseSynchronizer {
             stmt.setBoolean(5, r.isTextFile());
             stmt.setString(6, r.getContent());
             stmt.setString(7, r.getPreview());
-            stmt.setString(8, r.getContentHash());
+            stmt.setDouble(8, r.getPathScore());
             stmt.setString(9, r.getFilePath());
             stmt.executeUpdate();
         }

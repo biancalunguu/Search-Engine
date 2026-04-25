@@ -17,6 +17,8 @@ public class Main {
             return;
         }
 
+        DatabaseConnection.getInstance().initializeDatabase("sql/schema.sql");
+
         Scanner scanner = new Scanner(System.in);
         boolean running = true;
 

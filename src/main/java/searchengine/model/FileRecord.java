@@ -17,40 +17,95 @@ public class FileRecord {
     private boolean textFile;
     private String content;
     private String preview;
-    private String contentHash;
     private LocalDateTime indexedAt;
 
+    //I2 s2: add path ranking by score
+    private double pathScore;
 
-    public long getId() { return id; }
-    public void setId(long id) { this.id = id; }
+    public double getPathScore() {
+        return pathScore;
+    }
+    public void setPathScore(double pathScore) {
+        this.pathScore = pathScore;
+    }
 
-    public String getFilePath() { return filePath; }
-    public void setFilePath(String filePath) { this.filePath = filePath; }
 
-    public String getFileName() { return fileName; }
-    public void setFileName(String fileName) { this.fileName = fileName; }
+    public long getId() {
+        return id;
+    }
+    public void setId(long id) {
+        this.id = id;
+    }
 
-    public String getExtension() { return extension; }
-    public void setExtension(String extension) { this.extension = extension; }
 
-    public long getSizeBytes() { return sizeBytes; }
-    public void setSizeBytes(long sizeBytes) { this.sizeBytes = sizeBytes; }
+    public String getFilePath() {
+        return filePath;
+    }
+    public void setFilePath(String filePath) {
+        this.filePath = filePath;
+    }
 
-    public LocalDateTime getLastModified() { return lastModified; }
-    public void setLastModified(LocalDateTime lastModified) { this.lastModified = lastModified; }
 
-    public boolean isTextFile() { return textFile; }
-    public void setTextFile(boolean textFile) { this.textFile = textFile; }
+    public String getFileName() {
+        return fileName;
+    }
+    public void setFileName(String fileName) {
+        this.fileName = fileName;
+    }
 
-    public String getContent() { return content; }
-    public void setContent(String content) { this.content = content; }
 
-    public String getPreview() { return preview; }
-    public void setPreview(String preview) { this.preview = preview; }
+    public String getExtension() {
+        return extension;
+    }
+    public void setExtension(String extension) {
+        this.extension = extension;
+    }
 
-    public String getContentHash() { return contentHash; }
-    public void setContentHash(String contentHash) { this.contentHash = contentHash; }
 
-    public LocalDateTime getIndexedAt() { return indexedAt; }
-    public void setIndexedAt(LocalDateTime indexedAt) { this.indexedAt = indexedAt; }
+    public long getSizeBytes() {
+        return sizeBytes;
+    }
+    public void setSizeBytes(long sizeBytes) {
+        this.sizeBytes = sizeBytes;
+    }
+
+
+    public LocalDateTime getLastModified() {
+        return lastModified;
+    }
+    public void setLastModified(LocalDateTime lastModified) {
+        this.lastModified = lastModified;
+    }
+
+
+    public boolean isTextFile() {
+        return textFile;
+    }
+    public void setTextFile(boolean textFile) {
+        this.textFile = textFile;
+    }
+
+
+    public String getContent() {
+        return content;
+    }
+    public void setContent(String content) {
+        this.content = content;
+    }
+
+
+    public String getPreview() {
+        return preview;
+    }
+    public void setPreview(String preview) {
+        this.preview = preview;
+    }
+
+
+    public LocalDateTime getIndexedAt() {
+        return indexedAt;
+    }
+    public void setIndexedAt(LocalDateTime indexedAt) {
+        this.indexedAt = indexedAt;
+    }
 }

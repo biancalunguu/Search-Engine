@@ -20,7 +20,6 @@ import java.util.List;
  * Reads a file from disk and builds a FileRecord containing:
  *   - Metadata (name, extension, size, last-modified time)
  *   - Text content + preview (for recognised text file types under the size limit)
- *   - MD5 hash of the content (used by DatabaseSynchronizer to detect changes)
  */
 public class DataExtractor {
 
@@ -56,7 +55,6 @@ public class DataExtractor {
                 String content = Files.readString(filePath, StandardCharsets.UTF_8);
                 record.setContent(content);
                 record.setPreview(generatePreview(content));
-                record.setContentHash(md5(content));
             } catch (MalformedInputException e) {
                 record.setTextFile(false);
             }
@@ -86,17 +84,5 @@ public class DataExtractor {
 
     private LocalDateTime toLocalDateTime(Instant instant) {
         return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
-    }
-
-    private String md5(String content) {
-        try {
-            MessageDigest md   = MessageDigest.getInstance("MD5");
-            byte[]        hash = md.digest(content.getBytes(StandardCharsets.UTF_8));
-            StringBuilder sb   = new StringBuilder();
-            for (byte b : hash) sb.append(String.format("%02x", b));
-            return sb.toString();
-        } catch (NoSuchAlgorithmException e) {
-            return null; // MD5 is always available in Java, but be safe
-        }
     }
 }

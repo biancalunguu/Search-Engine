@@ -2,6 +2,7 @@ package searchengine.indexing;
 
 import searchengine.config.ConfigurationManager;
 import searchengine.model.FileRecord;
+import searchengine.ranking.PathScorer;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -44,6 +45,7 @@ public class IndexingService {
 
         // step 2
         DataExtractor    extractor = new DataExtractor();
+        PathScorer pathScorer = new PathScorer();
         List<FileRecord> records   = new ArrayList<>();
 
         System.out.println("[INFO] Extracting file data...");
@@ -52,17 +54,20 @@ public class IndexingService {
                 System.out.printf("[INFO] Processed %d / %d files...%n", i + 1, discoveredPaths.size());
             }
 
+            //implement the paths extraction
             try {
-                records.add(extractor.extract(discoveredPaths.get(i)));
+                FileRecord record = extractor.extract(discoveredPaths.get(i));
+                record.setPathScore(pathScorer.score(record));
+                records.add(record);
             } catch (IOException e) {
-                System.err.println("[WARN] Could not extract: " + discoveredPaths.get(i) + " — " + e.getMessage());
+                System.err.println("[WARN] Could not extract: " + discoveredPaths.get(i) + " - " + e.getMessage());
             }
         }
 
         // step 3
         System.out.println("[INFO] Syncing to database...");
         try {
-            DatabaseSynchronizer sync    = new DatabaseSynchronizer();
+            DatabaseSynchronizer sync = new DatabaseSynchronizer();
             Map<String, LocalDateTime> indexed = sync.getIndexedFiles();
             sync.sync(records, indexed);
             reporter.printReport(sync);

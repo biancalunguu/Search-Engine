@@ -54,4 +54,25 @@ public class DatabaseConnection {
             }
         }
     }
+
+    /**
+     * Reads a SQL script file and executes its statements.
+     */
+    public void initializeDatabase(String scriptPath) {
+        try {
+            String sql = java.nio.file.Files.readString(java.nio.file.Paths.get(scriptPath));
+            String[] statements = sql.split(";");
+            Connection conn = getConnection();
+            try (java.sql.Statement stmt = conn.createStatement()) {
+                for (String statement : statements) {
+                    if (!statement.trim().isEmpty()) {
+                        stmt.execute(statement);
+                    }
+                }
+            }
+            System.out.println("[INFO] Database schema initialized successfully.");
+        } catch (Exception e) {
+            System.err.println("[WARN] Failed to run schema script: " + e.getMessage());
+        }
+    }
 }
