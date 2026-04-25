@@ -46,7 +46,7 @@ public class SearchExecutor {
                        is_text_file, content, preview, indexed_at, path_score
                 FROM files
                 WHERE MATCH(file_name, content) AGAINST (? IN BOOLEAN MODE)
-                ORDER BY path_score DESC, file_name ASC
+                ORDER BY file_name ASC
                 LIMIT ?
                 """;
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
@@ -67,7 +67,7 @@ public class SearchExecutor {
         String sql = "SELECT id, file_path, file_name, extension, size_bytes, last_modified, "
                 + "is_text_file, content, preview, indexed_at, path_score "
                 + "FROM files WHERE " + where
-                + " ORDER BY path_score DESC, file_name ASC LIMIT " + maxResults;
+                + " ORDER BY file_name ASC LIMIT " + maxResults;
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             int i = 1;
@@ -104,7 +104,7 @@ public class SearchExecutor {
         String sql = "SELECT id, file_path, file_name, extension, size_bytes, last_modified, "
                 + "is_text_file, content, preview, indexed_at, path_score "
                 + "FROM files WHERE " + where
-                + " ORDER BY path_score DESC, file_name ASC LIMIT " + maxResults;
+                + " ORDER BY file_name ASC LIMIT " + maxResults;
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             int index = 1;
