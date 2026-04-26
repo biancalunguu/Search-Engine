@@ -6,6 +6,9 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class SearchHistoryService implements SearchObserver {
 
     private final DatabaseConnection databaseConnection;
@@ -66,5 +69,60 @@ public class SearchHistoryService implements SearchObserver {
         }
 
         return suggestions;
+    }
+
+    public Map<String, Integer> getFrequentSearchTerms() {
+        Map<String, Integer> termFrequency = new HashMap<>();
+
+        String sql = """
+            SELECT query_text
+            FROM search_history
+            ORDER BY searched_at DESC
+            LIMIT 50
+            """;
+
+        try (Connection connection = databaseConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql);
+             ResultSet resultSet = statement.executeQuery()) {
+
+            while (resultSet.next()) {
+                String query = resultSet.getString("query_text");
+
+                for (String term : extractTerms(query)) {
+                    termFrequency.put(term, termFrequency.getOrDefault(term, 0) + 1);
+                }
+            }
+
+        } catch (SQLException e) {
+            System.err.println("[WARN] Could not load search history terms: " + e.getMessage());
+        }
+
+        return termFrequency;
+    }
+
+    private List<String> extractTerms(String query) {
+        List<String> terms = new ArrayList<>();
+
+        if (query == null || query.isBlank()) {
+            return terms;
+        }
+
+        String[] tokens = query.toLowerCase().split("\\s+");
+
+        for (String token : tokens) {
+            String cleaned = token;
+
+            if (cleaned.contains(":")) {
+                cleaned = cleaned.substring(cleaned.indexOf(":") + 1);
+            }
+
+            cleaned = cleaned.replaceAll("[^a-z0-9._/-]", "");
+
+            if (!cleaned.isBlank()) {
+                terms.add(cleaned);
+            }
+        }
+
+        return terms;
     }
 }

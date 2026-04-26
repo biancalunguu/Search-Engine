@@ -25,10 +25,10 @@ public class QueryEngine {
         this.parser = new QueryParser();
         this.executor = new SearchExecutor();
         this.snippetGenerator = new SnippetGenerator();
-        this.rankingManager = new RankingManager();
         this.searchSubject = new SearchSubject();
         this.searchHistoryService = new SearchHistoryService();
         this.searchSubject.addObserver(searchHistoryService);
+        this.rankingManager = new RankingManager(searchHistoryService);
     }
 
     public List<SearchResult> query(String rawInput) throws SQLException {

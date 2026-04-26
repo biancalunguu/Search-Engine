@@ -1,5 +1,6 @@
 package searchengine.ranking;
 
+import searchengine.history.SearchHistoryService;
 import searchengine.model.SearchResult;
 
 import java.util.HashMap;
@@ -11,9 +12,10 @@ public class RankingManager {
     private final Map<String, RankingStrategy> strategies = new HashMap<>();
     private RankingStrategy currentStrategy;
 
-    public RankingManager() {
+    public RankingManager(SearchHistoryService searchHistoryService) {
         register(new PathScoreRankingStrategy());
         register(new AlphabeticalRankingStrategy());
+        register(new HistoryRankingStrategy(searchHistoryService));
 
         currentStrategy = strategies.get("path");
     }

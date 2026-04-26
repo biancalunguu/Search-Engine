@@ -65,7 +65,7 @@ public class SearchApplication {
 
     public void run() {
         System.out.println("\n  ==== Search Mode ==== (type 'exit' to return to menu)");
-        System.out.println("  Ranking commands: :rank path, :rank alpha");
+        System.out.println("  Ranking commands: :rank path, :rank alpha, :rank history");
         System.out.println("  History commands: :suggest <partial query>");
 
         while (true) {
