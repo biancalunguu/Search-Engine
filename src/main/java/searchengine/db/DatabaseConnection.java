@@ -18,7 +18,7 @@ public class DatabaseConnection {
     private static DatabaseConnection instance;
     private Connection connection;
 
-    private DatabaseConnection() {}
+    public DatabaseConnection() {}
 
     public static DatabaseConnection getInstance() {
         if (instance == null) {
