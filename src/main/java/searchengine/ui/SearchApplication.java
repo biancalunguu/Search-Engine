@@ -42,8 +42,31 @@ public class SearchApplication {
         }
     }
 
+    private void handleSuggestCommand(String command) {
+        String[] parts = command.split("\\s+", 2);
+
+        if (parts.length < 2 || parts[1].isBlank()) {
+            System.out.println("Usage: :suggest <partial query>");
+            return;
+        }
+
+        List<String> suggestions = engine.suggestQueries(parts[1]);
+
+        if (suggestions.isEmpty()) {
+            System.out.println("No suggestions found.");
+            return;
+        }
+
+        System.out.println("Suggestions:");
+        for (String suggestion : suggestions) {
+            System.out.println("- " + suggestion);
+        }
+    }
+
     public void run() {
         System.out.println("\n  ==== Search Mode ==== (type 'exit' to return to menu)");
+        System.out.println("  Ranking commands: :rank path, :rank alpha");
+        System.out.println("  History commands: :suggest <partial query>");
 
         while (true) {
             System.out.println();
@@ -59,6 +82,11 @@ public class SearchApplication {
 
             if (query.startsWith(":rank")) {
                 handleRankingCommand(query);
+                continue;
+            }
+
+            if (query.startsWith(":suggest")) {
+                handleSuggestCommand(query);
                 continue;
             }
 

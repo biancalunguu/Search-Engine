@@ -3,6 +3,9 @@ package searchengine.query;
 import searchengine.model.FileRecord;
 import searchengine.model.SearchResult;
 import searchengine.ranking.RankingManager;
+import searchengine.history.SearchEvent;
+import searchengine.history.SearchHistoryService;
+import searchengine.history.SearchSubject;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -15,12 +18,17 @@ public class QueryEngine {
     private final SearchExecutor executor;
     private final SnippetGenerator snippetGenerator;
     private final RankingManager rankingManager;
+    private final SearchSubject searchSubject;
+    private final SearchHistoryService searchHistoryService;
 
     public QueryEngine() throws SQLException {
         this.parser = new QueryParser();
         this.executor = new SearchExecutor();
         this.snippetGenerator = new SnippetGenerator();
         this.rankingManager = new RankingManager();
+        this.searchSubject = new SearchSubject();
+        this.searchHistoryService = new SearchHistoryService();
+        this.searchSubject.addObserver(searchHistoryService);
     }
 
     public List<SearchResult> query(String rawInput) throws SQLException {
@@ -44,7 +52,13 @@ public class QueryEngine {
             results.add(new SearchResult(file, snippet));
         }
 
-        return results;
+        List<SearchResult> rankedResults = rankingManager.rank(results);
+
+        searchSubject.notifyObservers(
+                new SearchEvent(rawInput, rankedResults.size())
+        );
+
+        return rankedResults;
     }
 
     public boolean setRankingStrategy(String strategyName) {
@@ -57,6 +71,10 @@ public class QueryEngine {
 
     public String getAvailableRankingStrategies() {
         return rankingManager.getAvailableStrategies();
+    }
+
+    public List<String> suggestQueries(String partialQuery) {
+        return searchHistoryService.suggestQueries(partialQuery);
     }
 
 
