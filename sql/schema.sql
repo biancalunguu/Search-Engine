@@ -20,3 +20,10 @@ CREATE TABLE IF NOT EXISTS files (
     UNIQUE KEY uq_file_path (file_path(512)),
     FULLTEXT KEY ft_search (file_name, content)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS search_history (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    query_text VARCHAR(500) NOT NULL,
+    result_count INT NOT NULL,
+    searched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
