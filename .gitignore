@@ -3,4 +3,7 @@ target/
 *.iml
 .DS_Store
 Thumbs.db
-src/main/resources/config.properties
+src/main/resources/config.
+*.sqlite
+*.class
+*.db
