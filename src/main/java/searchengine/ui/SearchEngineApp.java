@@ -5,6 +5,7 @@ import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.scene.Parent;
 import javafx.scene.control.*;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
 import searchengine.indexing.IndexingService;
 import searchengine.model.SearchResult;
@@ -13,12 +14,6 @@ import searchengine.query.QueryEngine;
 import java.sql.SQLException;
 import java.util.List;
 
-/**
- * JavaFX user interface for the local search engine.
- *
- * This class only handles presentation and user actions. The actual search,
- * ranking, suggestions and indexing logic remains in the backend services.
- */
 public class SearchEngineApp {
 
     private final BorderPane root = new BorderPane();
@@ -27,10 +22,14 @@ public class SearchEngineApp {
     private final Button searchButton = new Button("Search");
     private final Button indexButton = new Button("Index Files");
 
-    private final ComboBox<String> rankingComboBox = new ComboBox<>(
-            FXCollections.observableArrayList("path", "alpha", "history")
-    );
+    private final ComboBox<String> rankingComboBox =
+            new ComboBox<>(FXCollections.observableArrayList("path", "alpha", "history"));
 
+    private final Label autocompleteLabel = new Label("Autocomplete: none");
+    private final Label autocompleteHintLabel = new Label("Press TAB to accept autocomplete");
+    private String currentAutocomplete = null;
+
+    private final ListView<String> suggestionsList = new ListView<>();
     private final ListView<SearchResult> resultsList = new ListView<>();
     private final Label statusLabel = new Label("Ready.");
 
@@ -50,13 +49,12 @@ public class SearchEngineApp {
         root.setPadding(new Insets(16));
 
         Label title = new Label("Local Search Engine");
-        title.setStyle("-fx-font-size: 24px; -fx-font-weight: bold;");
+        title.setStyle("-fx-font-size: 26px; -fx-font-weight: bold;");
 
         searchField.setPromptText("Example: path:src content:java");
-        searchField.setPrefWidth(420);
+        searchField.setPrefWidth(520);
 
         rankingComboBox.setValue("path");
-        rankingComboBox.setPrefWidth(120);
 
         HBox searchRow = new HBox(10);
         searchRow.getChildren().addAll(
@@ -68,20 +66,32 @@ public class SearchEngineApp {
                 indexButton
         );
 
+        autocompleteLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #333333;");
+        autocompleteHintLabel.setStyle("-fx-text-fill: #777777;");
+
+        VBox autocompleteBox = new VBox(3);
+        autocompleteBox.getChildren().addAll(autocompleteLabel, autocompleteHintLabel);
+
+        Label suggestionsTitle = new Label("Related previous searches");
+        suggestionsTitle.setStyle("-fx-font-weight: bold;");
+
+        suggestionsList.setMaxHeight(95);
+        suggestionsList.setVisible(false);
+        suggestionsList.setManaged(false);
+
+        VBox suggestionsBox = new VBox(5);
+        suggestionsBox.getChildren().addAll(suggestionsTitle, suggestionsList);
+
         VBox top = new VBox(12);
-        top.getChildren().addAll(title, searchRow);
+        top.getChildren().addAll(title, searchRow, autocompleteBox, suggestionsBox);
+
         root.setTop(top);
 
         resultsList.setCellFactory(listView -> new SearchResultCell());
 
-        Label resultsTitle = new Label("Results");
-        resultsTitle.setStyle("-fx-font-size: 15px; -fx-font-weight: bold;");
-
-        VBox resultsBox = new VBox(8, resultsTitle, resultsList);
+        VBox resultsBox = new VBox(8);
+        resultsBox.getChildren().addAll(new Label("Results"), resultsList);
         VBox.setVgrow(resultsList, Priority.ALWAYS);
-
-        Label suggestionsTitle = new Label("Suggestions");
-        suggestionsTitle.setStyle("-fx-font-size: 15px; -fx-font-weight: bold;");
 
         root.setCenter(resultsBox);
 
@@ -92,14 +102,107 @@ public class SearchEngineApp {
     private void connectActions() {
         searchButton.setOnAction(event -> runSearch());
         searchField.setOnAction(event -> runSearch());
-        indexButton.setOnAction(event -> runIndexing());
 
-        rankingComboBox.setOnAction(event -> {
-            String selectedStrategy = rankingComboBox.getValue();
-            if (selectedStrategy != null && queryEngine.setRankingStrategy(selectedStrategy)) {
-                statusLabel.setText("Ranking changed to: " + selectedStrategy);
+        searchField.textProperty().addListener((observable, oldValue, newValue) -> {
+            updateSuggestionsAndAutocomplete(newValue);
+        });
+
+        searchField.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.TAB) {
+                acceptAutocomplete();
+                event.consume();
+            }
+
+            if (event.getCode() == KeyCode.ESCAPE) {
+                clearSuggestions();
+                event.consume();
             }
         });
+
+        suggestionsList.setOnMouseClicked(event -> {
+            String selected = suggestionsList.getSelectionModel().getSelectedItem();
+
+            if (selected != null) {
+                searchField.setText(selected);
+                searchField.positionCaret(selected.length());
+                clearSuggestions();
+                searchField.requestFocus();
+            }
+        });
+
+        rankingComboBox.setOnAction(event -> {
+            String selected = rankingComboBox.getValue();
+
+            if (selected != null && queryEngine.setRankingStrategy(selected)) {
+                statusLabel.setText("Ranking changed to: " + selected);
+            }
+        });
+
+        indexButton.setOnAction(event -> runIndexing());
+    }
+
+    private void updateSuggestionsAndAutocomplete(String input) {
+        if (input == null || input.isBlank()) {
+            currentAutocomplete = null;
+            autocompleteLabel.setText("Autocomplete: none");
+            clearSuggestions();
+            return;
+        }
+
+        List<String> suggestions = queryEngine.suggestQueriesFuzzy(input)
+                .stream()
+                .limit(3)
+                .toList();
+
+        updateAutocomplete(input, suggestions);
+        updateSuggestionList(suggestions);
+    }
+
+    private void updateAutocomplete(String input, List<String> suggestions) {
+        currentAutocomplete = null;
+
+        if (suggestions.isEmpty()) {
+            autocompleteLabel.setText("Autocomplete: none");
+            return;
+        }
+
+        String best = suggestions.get(0);
+
+        if (best.equalsIgnoreCase(input)) {
+            autocompleteLabel.setText("Autocomplete: already complete");
+            return;
+        }
+
+        currentAutocomplete = best;
+        autocompleteLabel.setText("Autocomplete: " + best);
+    }
+
+    private void updateSuggestionList(List<String> suggestions) {
+        if (suggestions.isEmpty()) {
+            clearSuggestions();
+            return;
+        }
+
+        suggestionsList.getItems().setAll(suggestions);
+        suggestionsList.setVisible(true);
+        suggestionsList.setManaged(true);
+    }
+
+    private void acceptAutocomplete() {
+        if (currentAutocomplete == null || currentAutocomplete.isBlank()) {
+            return;
+        }
+
+        searchField.setText(currentAutocomplete);
+        searchField.positionCaret(currentAutocomplete.length());
+        clearSuggestions();
+        statusLabel.setText("Autocomplete accepted.");
+    }
+
+    private void clearSuggestions() {
+        suggestionsList.getItems().clear();
+        suggestionsList.setVisible(false);
+        suggestionsList.setManaged(false);
     }
 
     private void runSearch() {
@@ -113,8 +216,15 @@ public class SearchEngineApp {
         try {
             List<SearchResult> results = queryEngine.query(query);
             resultsList.getItems().setAll(results);
-            statusLabel.setText("Found " + results.size() + " result(s) using "
-                    + queryEngine.getCurrentRankingStrategy() + " ranking.");
+
+            clearSuggestions();
+
+            statusLabel.setText(
+                    "Found " + results.size()
+                            + " result(s) using ranking: "
+                            + queryEngine.getCurrentRankingStrategy()
+            );
+
         } catch (SQLException e) {
             statusLabel.setText("Search failed: " + e.getMessage());
         }
@@ -122,16 +232,24 @@ public class SearchEngineApp {
 
     private void runIndexing() {
         indexButton.setDisable(true);
-        statusLabel.setText("Indexing files...");
+        statusLabel.setText("Indexing files... please wait.");
 
         Thread indexingThread = new Thread(() -> {
-            IndexingService indexingService = new IndexingService();
-            indexingService.run();
+            try {
+                IndexingService indexingService = new IndexingService();
+                indexingService.run();
 
-            Platform.runLater(() -> {
-                indexButton.setDisable(false);
-                statusLabel.setText("Indexing finished. You can now search.");
-            });
+                Platform.runLater(() -> {
+                    indexButton.setDisable(false);
+                    statusLabel.setText("Indexing finished.");
+                });
+
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    indexButton.setDisable(false);
+                    statusLabel.setText("Indexing failed: " + e.getMessage());
+                });
+            }
         });
 
         indexingThread.setDaemon(true);

@@ -1,7 +1,9 @@
 package searchengine.history;
 
 import searchengine.db.DatabaseConnection;
+import searchengine.util.LevenshteinDistance;
 
+import java.util.Comparator;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -124,5 +126,65 @@ public class SearchHistoryService implements SearchObserver {
         }
 
         return terms;
+    }
+
+    public List<String> suggestQueriesFuzzy(String partialQuery) {
+        List<QuerySuggestion> suggestions = new ArrayList<>();
+
+        String sql = """
+            SELECT query_text, COUNT(*) AS frequency
+            FROM search_history
+            GROUP BY query_text
+            """;
+
+        try (Connection connection = databaseConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql);
+             ResultSet resultSet = statement.executeQuery()) {
+
+            while (resultSet.next()) {
+                String storedQuery = resultSet.getString("query_text");
+                int frequency = resultSet.getInt("frequency");
+
+                int distance = LevenshteinDistance.calculate(
+                        partialQuery.toLowerCase(),
+                        storedQuery.toLowerCase()
+                );
+
+                int maxAllowedDistance = getMaxAllowedDistance(partialQuery);
+
+                if (storedQuery.toLowerCase().contains(partialQuery.toLowerCase())
+                        || distance <= maxAllowedDistance) {
+                    suggestions.add(new QuerySuggestion(storedQuery, distance, frequency));
+                }
+            }
+
+        } catch (SQLException e) {
+            System.err.println("[WARN] Could not load fuzzy suggestions: " + e.getMessage());
+        }
+
+        suggestions.sort(
+                Comparator.comparingDouble(QuerySuggestion::getScore)
+                        .reversed()
+                        .thenComparing(QuerySuggestion::getDistance)
+        );
+
+        return suggestions.stream()
+                .limit(5)
+                .map(QuerySuggestion::getQueryText)
+                .toList();
+    }
+
+    private int getMaxAllowedDistance(String input) {
+        int length = input.length();
+
+        if (length <= 3) {
+            return 1;
+        }
+
+        if (length <= 8) {
+            return 2;
+        }
+
+        return 3;
     }
 }

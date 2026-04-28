@@ -77,5 +77,8 @@ public class QueryEngine {
         return searchHistoryService.suggestQueries(partialQuery);
     }
 
+    public List<String> suggestQueriesFuzzy(String partialQuery) {
+        return searchHistoryService.suggestQueriesFuzzy(partialQuery);
+    }
 
 }
