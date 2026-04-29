@@ -22,9 +22,6 @@ public class SearchExecutor {
         this.maxResults = ConfigurationManager.getInstance().getMaxResults();
     }
 
-    /**
-     * Executes the search and returns up to maxResults matching FileRecords.
-     */
     public List<FileRecord> search(QueryParser.ParsedQuery query) throws SQLException {
         if (query.hasQualifiedTerms()) {
             return searchQualified(query);
@@ -39,7 +36,6 @@ public class SearchExecutor {
         return results;
     }
 
-
     private List<FileRecord> searchFullText(QueryParser.ParsedQuery query) throws SQLException {
         String sql = """
                 SELECT id, file_path, file_name, extension, size_bytes, last_modified,
@@ -49,6 +45,7 @@ public class SearchExecutor {
                 ORDER BY file_name ASC
                 LIMIT ?
                 """;
+
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, query.toFullTextQuery());
             stmt.setInt(2, maxResults);
@@ -56,27 +53,43 @@ public class SearchExecutor {
         }
     }
 
-
     private List<FileRecord> searchLike(QueryParser.ParsedQuery query) throws SQLException {
         StringBuilder where = new StringBuilder();
+
         for (int i = 0; i < query.getTerms().size(); i++) {
             if (i > 0) where.append(" AND ");
-            where.append("(file_name LIKE ? OR content LIKE ? OR file_path LIKE ?)");
+
+            where.append("""
+                    (
+                        file_name LIKE ?
+                        OR content LIKE ?
+                        OR REPLACE(file_path, '\\\\', '/') LIKE ?
+                    )
+                    """);
         }
 
-        String sql = "SELECT id, file_path, file_name, extension, size_bytes, last_modified, "
-                + "is_text_file, content, preview, indexed_at, path_score "
-                + "FROM files WHERE " + where
-                + " ORDER BY file_name ASC LIMIT " + maxResults;
+        String sql = """
+                SELECT id, file_path, file_name, extension, size_bytes, last_modified,
+                       is_text_file, content, preview, indexed_at, path_score
+                FROM files
+                WHERE %s
+                ORDER BY file_name ASC
+                LIMIT ?
+                """.formatted(where);
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            int i = 1;
+            int index = 1;
+
             for (String term : query.getTerms()) {
-                String like = "%" + term + "%";
-                stmt.setString(i++, like);
-                stmt.setString(i++, like);
-                stmt.setString(i++, like);
+                String like = "%" + normalizePathTerm(term) + "%";
+
+                stmt.setString(index++, like);
+                stmt.setString(index++, like);
+                stmt.setString(index++, like);
             }
+
+            stmt.setInt(index, maxResults);
+
             return mapResultSet(stmt.executeQuery());
         }
     }
@@ -84,7 +97,7 @@ public class SearchExecutor {
     /**
      * Iteration 2 parser support.
      * - content:x checks file_name or content
-     * - path:x checks file_path
+     * - path:x checks normalized file_path
      * - unqualified words keep the old broad behavior
      * Every term is joined with AND, including duplicate qualifiers.
      */
@@ -92,46 +105,80 @@ public class SearchExecutor {
         StringBuilder where = new StringBuilder("1 = 1");
 
         for (int i = 0; i < query.getGeneralTerms().size(); i++) {
-            where.append(" AND (file_name LIKE ? OR content LIKE ? OR file_path LIKE ?)");
-        }
-        for (int i = 0; i < query.getContentTerms().size(); i++) {
-            where.append(" AND (file_name LIKE ? OR content LIKE ?)");
-        }
-        for (int i = 0; i < query.getPathTerms().size(); i++) {
-            where.append(" AND file_path LIKE ?");
+            where.append("""
+                    AND (
+                        file_name LIKE ?
+                        OR content LIKE ?
+                        OR REPLACE(file_path, '\\\\', '/') LIKE ?
+                    )
+                    """);
         }
 
-        String sql = "SELECT id, file_path, file_name, extension, size_bytes, last_modified, "
-                + "is_text_file, content, preview, indexed_at, path_score "
-                + "FROM files WHERE " + where
-                + " ORDER BY file_name ASC LIMIT " + maxResults;
+        for (int i = 0; i < query.getContentTerms().size(); i++) {
+            where.append("""
+                    AND (
+                        file_name LIKE ?
+                        OR content LIKE ?
+                    )
+                    """);
+        }
+
+        for (int i = 0; i < query.getPathTerms().size(); i++) {
+            where.append(" AND REPLACE(file_path, '\\\\', '/') LIKE ?");
+        }
+
+        String sql = """
+                SELECT id, file_path, file_name, extension, size_bytes, last_modified,
+                       is_text_file, content, preview, indexed_at, path_score
+                FROM files
+                WHERE %s
+                ORDER BY file_name ASC
+                LIMIT ?
+                """.formatted(where);
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             int index = 1;
 
             for (String term : query.getGeneralTerms()) {
-                String like = "%" + term + "%";
+                String like = "%" + normalizePathTerm(term) + "%";
+
                 stmt.setString(index++, like);
                 stmt.setString(index++, like);
                 stmt.setString(index++, like);
             }
+
             for (String term : query.getContentTerms()) {
                 String like = "%" + term + "%";
+
                 stmt.setString(index++, like);
                 stmt.setString(index++, like);
             }
+
             for (String term : query.getPathTerms()) {
-                stmt.setString(index++, "%" + term + "%");
+                String like = "%" + normalizePathTerm(term) + "%";
+                stmt.setString(index++, like);
             }
+
+            stmt.setInt(index, maxResults);
 
             return mapResultSet(stmt.executeQuery());
         }
     }
 
+    private String normalizePathTerm(String term) {
+        if (term == null) {
+            return "";
+        }
+
+        return term.replace("\\", "/");
+    }
+
     private List<FileRecord> mapResultSet(ResultSet rs) throws SQLException {
         List<FileRecord> list = new ArrayList<>();
+
         while (rs.next()) {
             FileRecord r = new FileRecord();
+
             r.setId(rs.getLong("id"));
             r.setFilePath(rs.getString("file_path"));
             r.setFileName(rs.getString("file_name"));
@@ -140,17 +187,22 @@ public class SearchExecutor {
             r.setPathScore(rs.getDouble("path_score"));
 
             Timestamp lastMod = rs.getTimestamp("last_modified");
-            if (lastMod != null) r.setLastModified(lastMod.toLocalDateTime());
+            if (lastMod != null) {
+                r.setLastModified(lastMod.toLocalDateTime());
+            }
 
             r.setTextFile(rs.getBoolean("is_text_file"));
             r.setContent(rs.getString("content"));
             r.setPreview(rs.getString("preview"));
 
             Timestamp indexedAt = rs.getTimestamp("indexed_at");
-            if (indexedAt != null) r.setIndexedAt(indexedAt.toLocalDateTime());
+            if (indexedAt != null) {
+                r.setIndexedAt(indexedAt.toLocalDateTime());
+            }
 
             list.add(r);
         }
+
         return list;
     }
 }
