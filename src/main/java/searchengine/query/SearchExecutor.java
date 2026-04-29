@@ -102,11 +102,11 @@ public class SearchExecutor {
      * Every term is joined with AND, including duplicate qualifiers.
      */
     private List<FileRecord> searchQualified(QueryParser.ParsedQuery query) throws SQLException {
-        StringBuilder where = new StringBuilder("1 = 1");
+        StringBuilder where = new StringBuilder("1=1");
 
         for (int i = 0; i < query.getGeneralTerms().size(); i++) {
             where.append("""
-                    AND (
+                     AND (
                         file_name LIKE ?
                         OR content LIKE ?
                         OR REPLACE(file_path, '\\\\', '/') LIKE ?
@@ -116,7 +116,7 @@ public class SearchExecutor {
 
         for (int i = 0; i < query.getContentTerms().size(); i++) {
             where.append("""
-                    AND (
+                     AND (
                         file_name LIKE ?
                         OR content LIKE ?
                     )
