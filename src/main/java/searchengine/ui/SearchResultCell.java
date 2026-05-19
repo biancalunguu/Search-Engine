@@ -31,11 +31,15 @@ public class SearchResultCell extends ListCell<SearchResult> {
         pathLabel.setWrapText(true);
         pathLabel.setStyle("-fx-text-fill: #555555;");
 
-        Label metadataLabel = new Label(
-                "Score: " + String.format("%.2f", file.getPathScore())
-                        + " | Extension: " + safe(file.getExtension())
-                        + " | Size: " + file.getSizeBytes() + " bytes"
-        );
+        String metadata = "Score: " + String.format("%.2f", file.getPathScore())
+                + " | Extension: " + safe(file.getExtension())
+                + " | Size: " + file.getSizeBytes() + " bytes";
+
+        if (file.isImageFile()) {
+            metadata += " | Image color: " + safe(file.getDominantColor());
+        }
+
+        Label metadataLabel = new Label(metadata);
         metadataLabel.setStyle("-fx-text-fill: #777777;");
 
         Label snippetLabel = new Label(safe(result.getSnippet()));

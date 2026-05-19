@@ -1,7 +1,6 @@
 package searchengine.query;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -24,6 +23,7 @@ public class QueryParser {
         List<String> generalTerms = new ArrayList<>();
         List<String> contentTerms = new ArrayList<>();
         List<String> pathTerms = new ArrayList<>();
+        List<String> colorTerms = new ArrayList<>();
 
         String[] tokens = rawQuery.trim().toLowerCase().split("\\s+"); // \\s+ means split on one or more whitespace characters
         for (String token : tokens) {
@@ -33,12 +33,14 @@ public class QueryParser {
                 contentTerms.add(token.substring("content:".length()));
             } else if (token.startsWith("path:") && token.length() > "path:".length()) {
                 pathTerms.add(token.substring("path:".length()));
+            } else if (token.startsWith("color:") && token.length() > "color:".length()) {
+                colorTerms.add(token.substring("color:".length()));
             } else {
                 generalTerms.add(token);
             }
         }
 
-        return new ParsedQuery(rawQuery.trim(), generalTerms, contentTerms, pathTerms);
+        return new ParsedQuery(rawQuery.trim(), generalTerms, contentTerms, pathTerms, colorTerms);
     }
 
 
@@ -49,29 +51,37 @@ public class QueryParser {
         private final List<String> generalTerms;
         private final List<String> contentTerms;
         private final List<String> pathTerms;
+        private final List<String> colorTerms;
 
-        public ParsedQuery(String original, List<String> generalTerms, List<String> contentTerms, List<String> pathTerms) {
+        public ParsedQuery(String original,
+                           List<String> generalTerms,
+                           List<String> contentTerms,
+                           List<String> pathTerms,
+                           List<String> colorTerms) {
             this.original = original;
             this.generalTerms = generalTerms;
             this.contentTerms = contentTerms;
             this.pathTerms = pathTerms;
+            this.colorTerms = colorTerms;
         }
 
         public String getOriginal() { return original; }
         public List<String> getGeneralTerms() { return generalTerms; }
         public List<String> getContentTerms() { return contentTerms; }
         public List<String> getPathTerms() { return pathTerms; }
+        public List<String> getColorTerms() { return colorTerms; }
 
         public List<String> getTerms() {
             List<String> all = new ArrayList<>();
             all.addAll(generalTerms);
             all.addAll(contentTerms);
             all.addAll(pathTerms);
+            all.addAll(colorTerms);
             return all;
         }
 
         public boolean hasQualifiedTerms() {
-            return !contentTerms.isEmpty() || !pathTerms.isEmpty();
+            return !contentTerms.isEmpty() || !pathTerms.isEmpty() || !colorTerms.isEmpty();
         }
 
         public boolean isMultiWord() {

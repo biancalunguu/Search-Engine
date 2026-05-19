@@ -43,6 +43,8 @@ public class QueryEngine {
 
             if (file.isTextFile() && file.getContent() != null) {
                 snippet = snippetGenerator.generate(file.getContent(), parsed.getTerms());
+            } else if (file.isImageFile() && file.getDominantColor() != null) {
+                snippet = "Image file - dominant color: " + file.getDominantColor();
             } else if (file.getPreview() != null) {
                 snippet = file.getPreview();
             } else {

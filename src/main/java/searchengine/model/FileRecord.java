@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 
 /**
  * Represents a single file entry stored in the database.
- * Contains metadata and optionally the full text content.
+ * Contains metadata and optionally the full text content or image metadata.
  */
 public class FileRecord {
 
@@ -15,6 +15,8 @@ public class FileRecord {
     private long sizeBytes;
     private LocalDateTime lastModified;
     private boolean textFile;
+    private boolean imageFile;
+    private String dominantColor;
     private String content;
     private String preview;
     private LocalDateTime indexedAt;
@@ -83,6 +85,20 @@ public class FileRecord {
     }
     public void setTextFile(boolean textFile) {
         this.textFile = textFile;
+    }
+
+    public boolean isImageFile() {
+        return imageFile;
+    }
+    public void setImageFile(boolean imageFile) {
+        this.imageFile = imageFile;
+    }
+
+    public String getDominantColor() {
+        return dominantColor;
+    }
+    public void setDominantColor(String dominantColor) {
+        this.dominantColor = dominantColor;
     }
 
 

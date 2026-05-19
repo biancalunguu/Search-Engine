@@ -51,8 +51,21 @@ public class ConfigurationManager {
     }
 
     public List<String> getTextExtensions() {
-        return Arrays.asList(
-                getProperty("index.text_extensions", "txt,md,java,py,js,html,css,xml,json").split(","));
+        return splitCsvProperty(
+                getProperty("index.text_extensions", "txt,md,java,py,js,html,css,xml,json"));
+    }
+
+    public List<String> getImageExtensions() {
+        return splitCsvProperty(
+                getProperty("index.image_extensions", "jpg,jpeg,png,bmp,gif,webp"));
+    }
+
+    private List<String> splitCsvProperty(String value) {
+        return Arrays.stream(value.split(","))
+                .map(String::trim)
+                .map(String::toLowerCase)
+                .filter(item -> !item.isBlank())
+                .toList();
     }
 
     public long getMaxFileSizeBytes() {

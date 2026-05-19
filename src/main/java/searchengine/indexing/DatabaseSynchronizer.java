@@ -93,8 +93,8 @@ public class DatabaseSynchronizer {
         String sql = """
                 INSERT INTO files
                     (file_path, file_name, extension, size_bytes, last_modified,
-                     is_text_file, content, preview, path_score)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     is_text_file, is_image_file, dominant_color, content, preview, path_score)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, r.getFilePath());
@@ -103,9 +103,11 @@ public class DatabaseSynchronizer {
             stmt.setLong(4, r.getSizeBytes());
             stmt.setTimestamp(5, toTimestamp(r.getLastModified()));
             stmt.setBoolean(6, r.isTextFile());
-            stmt.setString(7, r.getContent());
-            stmt.setString(8, r.getPreview());
-            stmt.setDouble(9, r.getPathScore());
+            stmt.setBoolean(7, r.isImageFile());
+            stmt.setString(8, r.getDominantColor());
+            stmt.setString(9, r.getContent());
+            stmt.setString(10, r.getPreview());
+            stmt.setDouble(11, r.getPathScore());
             stmt.executeUpdate();
         }
     }
@@ -118,6 +120,8 @@ public class DatabaseSynchronizer {
                     size_bytes    = ?,
                     last_modified = ?,
                     is_text_file  = ?,
+                    is_image_file = ?,
+                    dominant_color = ?,
                     content       = ?,
                     preview       = ?,
                     path_score    = ?,
@@ -130,10 +134,12 @@ public class DatabaseSynchronizer {
             stmt.setLong(3, r.getSizeBytes());
             stmt.setTimestamp(4, toTimestamp(r.getLastModified()));
             stmt.setBoolean(5, r.isTextFile());
-            stmt.setString(6, r.getContent());
-            stmt.setString(7, r.getPreview());
-            stmt.setDouble(8, r.getPathScore());
-            stmt.setString(9, r.getFilePath());
+            stmt.setBoolean(6, r.isImageFile());
+            stmt.setString(7, r.getDominantColor());
+            stmt.setString(8, r.getContent());
+            stmt.setString(9, r.getPreview());
+            stmt.setDouble(10, r.getPathScore());
+            stmt.setString(11, r.getFilePath());
             stmt.executeUpdate();
         }
     }

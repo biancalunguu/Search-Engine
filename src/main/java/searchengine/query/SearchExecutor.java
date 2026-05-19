@@ -39,7 +39,7 @@ public class SearchExecutor {
     private List<FileRecord> searchFullText(QueryParser.ParsedQuery query) throws SQLException {
         String sql = """
                 SELECT id, file_path, file_name, extension, size_bytes, last_modified,
-                       is_text_file, content, preview, indexed_at, path_score
+                       is_text_file, is_image_file, dominant_color, content, preview, indexed_at, path_score
                 FROM files
                 WHERE MATCH(file_name, content) AGAINST (? IN BOOLEAN MODE)
                 ORDER BY file_name ASC
@@ -64,13 +64,14 @@ public class SearchExecutor {
                         file_name LIKE ?
                         OR content LIKE ?
                         OR REPLACE(file_path, '\\\\', '/') LIKE ?
+                        OR dominant_color LIKE ?
                     )
                     """);
         }
 
         String sql = """
                 SELECT id, file_path, file_name, extension, size_bytes, last_modified,
-                       is_text_file, content, preview, indexed_at, path_score
+                       is_text_file, is_image_file, dominant_color, content, preview, indexed_at, path_score
                 FROM files
                 WHERE %s
                 ORDER BY file_name ASC
@@ -86,6 +87,7 @@ public class SearchExecutor {
                 stmt.setString(index++, like);
                 stmt.setString(index++, like);
                 stmt.setString(index++, like);
+                stmt.setString(index++, like);
             }
 
             stmt.setInt(index, maxResults);
@@ -95,9 +97,10 @@ public class SearchExecutor {
     }
 
     /**
-     * Iteration 2 parser support.
+     * Iteration 2 parser support + Iteration 3 color support.
      * - content:x checks file_name or content
      * - path:x checks normalized file_path
+     * - color:x checks image dominant_color
      * - unqualified words keep the old broad behavior
      * Every term is joined with AND, including duplicate qualifiers.
      */
@@ -110,6 +113,7 @@ public class SearchExecutor {
                         file_name LIKE ?
                         OR content LIKE ?
                         OR REPLACE(file_path, '\\\\', '/') LIKE ?
+                        OR dominant_color LIKE ?
                     )
                     """);
         }
@@ -127,9 +131,13 @@ public class SearchExecutor {
             where.append(" AND REPLACE(file_path, '\\\\', '/') LIKE ?");
         }
 
+        for (int i = 0; i < query.getColorTerms().size(); i++) {
+            where.append(" AND is_image_file = TRUE AND dominant_color = ?");
+        }
+
         String sql = """
                 SELECT id, file_path, file_name, extension, size_bytes, last_modified,
-                       is_text_file, content, preview, indexed_at, path_score
+                       is_text_file, is_image_file, dominant_color, content, preview, indexed_at, path_score
                 FROM files
                 WHERE %s
                 ORDER BY file_name ASC
@@ -145,6 +153,7 @@ public class SearchExecutor {
                 stmt.setString(index++, like);
                 stmt.setString(index++, like);
                 stmt.setString(index++, like);
+                stmt.setString(index++, like);
             }
 
             for (String term : query.getContentTerms()) {
@@ -157,6 +166,10 @@ public class SearchExecutor {
             for (String term : query.getPathTerms()) {
                 String like = "%" + normalizePathTerm(term) + "%";
                 stmt.setString(index++, like);
+            }
+
+            for (String term : query.getColorTerms()) {
+                stmt.setString(index++, term.toLowerCase());
             }
 
             stmt.setInt(index, maxResults);
@@ -192,6 +205,8 @@ public class SearchExecutor {
             }
 
             r.setTextFile(rs.getBoolean("is_text_file"));
+            r.setImageFile(rs.getBoolean("is_image_file"));
+            r.setDominantColor(rs.getString("dominant_color"));
             r.setContent(rs.getString("content"));
             r.setPreview(rs.getString("preview"));
 
