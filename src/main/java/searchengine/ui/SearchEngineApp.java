@@ -3,6 +3,7 @@ package searchengine.ui;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
+import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
@@ -10,6 +11,8 @@ import javafx.scene.layout.*;
 import searchengine.indexing.IndexingService;
 import searchengine.model.SearchResult;
 import searchengine.query.QueryEngine;
+import searchengine.widgets.SearchContext;
+import searchengine.widgets.WidgetFactory;
 
 import java.sql.SQLException;
 import java.util.List;
@@ -33,7 +36,11 @@ public class SearchEngineApp {
     private final ListView<SearchResult> resultsList = new ListView<>();
     private final Label statusLabel = new Label("Ready.");
 
+    private final Label widgetsTitle = new Label("Context-aware widgets");
+    private final HBox widgetsBox = new HBox(8);
+
     private final QueryEngine queryEngine;
+    private final WidgetFactory widgetFactory = new WidgetFactory();
 
     public SearchEngineApp() throws SQLException {
         this.queryEngine = new QueryEngine();
@@ -51,7 +58,7 @@ public class SearchEngineApp {
         Label title = new Label("Local Search Engine");
         title.setStyle("-fx-font-size: 26px; -fx-font-weight: bold;");
 
-        searchField.setPromptText("Example: path:src content:java");
+        searchField.setPromptText("Example: path:src content:java color:red");
         searchField.setPrefWidth(520);
 
         rankingComboBox.setValue("path");
@@ -82,8 +89,18 @@ public class SearchEngineApp {
         VBox suggestionsBox = new VBox(5);
         suggestionsBox.getChildren().addAll(suggestionsTitle, suggestionsList);
 
+        widgetsTitle.setStyle("-fx-font-weight: bold;");
+        widgetsTitle.setVisible(false);
+        widgetsTitle.setManaged(false);
+
+        widgetsBox.setVisible(false);
+        widgetsBox.setManaged(false);
+
+        VBox widgetsSection = new VBox(5);
+        widgetsSection.getChildren().addAll(widgetsTitle, widgetsBox);
+
         VBox top = new VBox(12);
-        top.getChildren().addAll(title, searchRow, autocompleteBox, suggestionsBox);
+        top.getChildren().addAll(title, searchRow, autocompleteBox, suggestionsBox, widgetsSection);
 
         root.setTop(top);
 
@@ -193,12 +210,15 @@ public class SearchEngineApp {
             return;
         }
 
-        searchField.setText(currentAutocomplete);
-        searchField.positionCaret(currentAutocomplete.length());
+        String acceptedAutocomplete = currentAutocomplete;
+
+        searchField.setText(acceptedAutocomplete);
+        searchField.positionCaret(acceptedAutocomplete.length());
+
+        currentAutocomplete = null;
         clearSuggestions();
         statusLabel.setText("Autocomplete accepted.");
     }
-
     private void clearSuggestions() {
         suggestionsList.getItems().clear();
         suggestionsList.setVisible(false);
@@ -210,6 +230,7 @@ public class SearchEngineApp {
 
         if (query.isBlank()) {
             statusLabel.setText("Type a query first.");
+            clearWidgets();
             return;
         }
 
@@ -217,6 +238,7 @@ public class SearchEngineApp {
             List<SearchResult> results = queryEngine.query(query);
             resultsList.getItems().setAll(results);
 
+            updateContextAwareWidgets(query, results);
             clearSuggestions();
 
             statusLabel.setText(
@@ -227,7 +249,29 @@ public class SearchEngineApp {
 
         } catch (SQLException e) {
             statusLabel.setText("Search failed: " + e.getMessage());
+            clearWidgets();
         }
+    }
+
+    private void updateContextAwareWidgets(String query, List<SearchResult> results) {
+        SearchContext context = new SearchContext(query, results);
+        List<Node> activeWidgets = widgetFactory.createWidgets(context);
+
+        widgetsBox.getChildren().setAll(activeWidgets);
+
+        boolean hasWidgets = !activeWidgets.isEmpty();
+        widgetsTitle.setVisible(hasWidgets);
+        widgetsTitle.setManaged(hasWidgets);
+        widgetsBox.setVisible(hasWidgets);
+        widgetsBox.setManaged(hasWidgets);
+    }
+
+    private void clearWidgets() {
+        widgetsBox.getChildren().clear();
+        widgetsTitle.setVisible(false);
+        widgetsTitle.setManaged(false);
+        widgetsBox.setVisible(false);
+        widgetsBox.setManaged(false);
     }
 
     private void runIndexing() {
