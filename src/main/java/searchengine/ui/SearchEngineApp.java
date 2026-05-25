@@ -8,9 +8,9 @@ import javafx.scene.Parent;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
-import searchengine.indexing.IndexingService;
+import searchengine.indexing.ParallelIndexingService;
 import searchengine.model.SearchResult;
-import searchengine.query.QueryEngine;
+import searchengine.query.*;
 import searchengine.widgets.SearchContext;
 import searchengine.widgets.WidgetFactory;
 
@@ -31,6 +31,10 @@ public class SearchEngineApp {
     private final Label autocompleteLabel = new Label("Autocomplete: none");
     private final Label autocompleteHintLabel = new Label("Press TAB to accept autocomplete");
     private String currentAutocomplete = null;
+
+    private final CheckBox sanitizeCb = new CheckBox("Sanitize Query");
+    private final CheckBox synonymCb = new CheckBox("Expand Synonyms");
+    private final CheckBox logicCb = new CheckBox("Auto-Wildcard");
 
     private final ListView<String> suggestionsList = new ListView<>();
     private final ListView<SearchResult> resultsList = new ListView<>();
@@ -99,8 +103,17 @@ public class SearchEngineApp {
         VBox widgetsSection = new VBox(5);
         widgetsSection.getChildren().addAll(widgetsTitle, widgetsBox);
 
+        HBox optionsRow = new HBox(15);
+        optionsRow.setPadding(new Insets(5, 0, 5, 0));
+        optionsRow.getChildren().addAll(
+                new Label("Pre-processors:"),
+                sanitizeCb,
+                synonymCb,
+                logicCb
+        );
+
         VBox top = new VBox(12);
-        top.getChildren().addAll(title, searchRow, autocompleteBox, suggestionsBox, widgetsSection);
+        top.getChildren().addAll(title, searchRow, optionsRow, autocompleteBox, suggestionsBox, widgetsSection);
 
         root.setTop(top);
 
@@ -234,6 +247,18 @@ public class SearchEngineApp {
             return;
         }
 
+        QueryBuilder builder = new BaseQueryBuilder();
+        if (sanitizeCb.isSelected()) {
+            builder = new SanitizationDecorator(builder);
+        }
+        if (synonymCb.isSelected()) {
+            builder = new SynonymDecorator(builder);
+        }
+        if (logicCb.isSelected()) {
+            builder = new LogicDecorator(builder);
+        }
+        queryEngine.setQueryBuilder(builder);
+
         try {
             List<SearchResult> results = queryEngine.query(query);
             resultsList.getItems().setAll(results);
@@ -280,7 +305,7 @@ public class SearchEngineApp {
 
         Thread indexingThread = new Thread(() -> {
             try {
-                IndexingService indexingService = new IndexingService();
+                ParallelIndexingService indexingService = new ParallelIndexingService();
                 indexingService.run();
 
                 Platform.runLater(() -> {
