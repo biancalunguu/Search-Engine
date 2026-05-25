@@ -25,15 +25,43 @@ public class QueryParser {
         List<String> pathTerms = new ArrayList<>();
         List<String> colorTerms = new ArrayList<>();
 
-        String[] tokens = rawQuery.trim().toLowerCase().split("\\s+"); // \\s+ means split on one or more whitespace characters
-        for (String token : tokens) {
+        String[] tokens = rawQuery.trim().split("\\s+");
+        List<String> processed = new ArrayList<>();
+        for (int i = 0; i < tokens.length; i++) {
+            String token = tokens[i];
             if (token.isBlank()) continue;
 
-            if (token.startsWith("content:") && token.length() > "content:".length()) {
+            if (token.equalsIgnoreCase("or") && !processed.isEmpty() && i + 1 < tokens.length) {
+                String next = tokens[i + 1];
+                if (!next.isBlank() && !next.equalsIgnoreCase("or")) {
+                    String last = processed.remove(processed.size() - 1);
+                    String grouped = last + "|" + next;
+                    i++;
+                    while (i + 1 < tokens.length && tokens[i + 1].equalsIgnoreCase("or") && i + 2 < tokens.length) {
+                        String further = tokens[i + 2];
+                        if (!further.isBlank() && !further.equalsIgnoreCase("or")) {
+                            grouped = grouped + "|" + further;
+                            i += 2;
+                        } else {
+                            break;
+                        }
+                    }
+                    processed.add(grouped);
+                } else {
+                    processed.add(token);
+                }
+            } else {
+                processed.add(token);
+            }
+        }
+
+        for (String token : processed) {
+            String lower = token.toLowerCase();
+            if (lower.startsWith("content:") && token.length() > "content:".length()) {
                 contentTerms.add(token.substring("content:".length()));
-            } else if (token.startsWith("path:") && token.length() > "path:".length()) {
+            } else if (lower.startsWith("path:") && token.length() > "path:".length()) {
                 pathTerms.add(token.substring("path:".length()));
-            } else if (token.startsWith("color:") && token.length() > "color:".length()) {
+            } else if (lower.startsWith("color:") && token.length() > "color:".length()) {
                 colorTerms.add(token.substring("color:".length()));
             } else {
                 generalTerms.add(token);
@@ -90,7 +118,28 @@ public class QueryParser {
 
         public String toFullTextQuery() {
             return termsForContentSearch().stream()
-                    .map(t -> "+" + t + "*")
+                    .map(t -> {
+                        if (t.contains("|")) {
+                            String[] parts = t.split("\\|");
+                            StringBuilder sb = new StringBuilder("+(");
+                            for (int i = 0; i < parts.length; i++) {
+                                if (i > 0) sb.append(" ");
+                                String term = parts[i].trim();
+                                if (!term.endsWith("*")) {
+                                    term = term + "*";
+                                }
+                                sb.append(term);
+                            }
+                            sb.append(")");
+                            return sb.toString();
+                        } else {
+                            String term = t.trim();
+                            if (!term.endsWith("*")) {
+                                term = term + "*";
+                            }
+                            return "+" + term;
+                        }
+                    })
                     .collect(Collectors.joining(" "));
         }
 

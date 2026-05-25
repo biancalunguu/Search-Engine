@@ -59,14 +59,18 @@ public class SearchExecutor {
         for (int i = 0; i < query.getTerms().size(); i++) {
             if (i > 0) where.append(" AND ");
 
-            where.append("""
-                    (
-                        file_name LIKE ?
-                        OR content LIKE ?
-                        OR REPLACE(file_path, '\\\\', '/') LIKE ?
-                        OR dominant_color LIKE ?
-                    )
-                    """);
+            String term = query.getTerms().get(i);
+            if (term.contains("|")) {
+                String[] parts = term.split("\\|");
+                where.append("(");
+                for (int j = 0; j < parts.length; j++) {
+                    if (j > 0) where.append(" OR ");
+                    where.append("(file_name LIKE ? OR content LIKE ?)");
+                }
+                where.append(")");
+            } else {
+                where.append("(file_name LIKE ? OR content LIKE ?)");
+            }
         }
 
         String sql = """
@@ -82,12 +86,13 @@ public class SearchExecutor {
             int index = 1;
 
             for (String term : query.getTerms()) {
-                String like = "%" + normalizePathTerm(term) + "%";
-
-                stmt.setString(index++, like);
-                stmt.setString(index++, like);
-                stmt.setString(index++, like);
-                stmt.setString(index++, like);
+                String[] parts = term.split("\\|");
+                for (String part : parts) {
+                    String cleanPart = part.replace("*", "").trim();
+                    String like = "%" + cleanPart + "%";
+                    stmt.setString(index++, like);
+                    stmt.setString(index++, like);
+                }
             }
 
             stmt.setInt(index, maxResults);
@@ -107,32 +112,44 @@ public class SearchExecutor {
     private List<FileRecord> searchQualified(QueryParser.ParsedQuery query) throws SQLException {
         StringBuilder where = new StringBuilder("1=1");
 
-        for (int i = 0; i < query.getGeneralTerms().size(); i++) {
-            where.append("""
-                     AND (
-                        file_name LIKE ?
-                        OR content LIKE ?
-                        OR REPLACE(file_path, '\\\\', '/') LIKE ?
-                        OR dominant_color LIKE ?
-                    )
-                    """);
+        for (String term : query.getGeneralTerms()) {
+            where.append(" AND (");
+            String[] parts = term.split("\\|");
+            for (int j = 0; j < parts.length; j++) {
+                if (j > 0) where.append(" OR ");
+                where.append("(file_name LIKE ? OR content LIKE ?)");
+            }
+            where.append(")");
         }
 
-        for (int i = 0; i < query.getContentTerms().size(); i++) {
-            where.append("""
-                     AND (
-                        file_name LIKE ?
-                        OR content LIKE ?
-                    )
-                    """);
+        for (String term : query.getContentTerms()) {
+            where.append(" AND (");
+            String[] parts = term.split("\\|");
+            for (int j = 0; j < parts.length; j++) {
+                if (j > 0) where.append(" OR ");
+                where.append("(file_name LIKE ? OR content LIKE ?)");
+            }
+            where.append(")");
         }
 
-        for (int i = 0; i < query.getPathTerms().size(); i++) {
-            where.append(" AND REPLACE(file_path, '\\\\', '/') LIKE ?");
+        for (String term : query.getPathTerms()) {
+            where.append(" AND (");
+            String[] parts = term.split("\\|");
+            for (int j = 0; j < parts.length; j++) {
+                if (j > 0) where.append(" OR ");
+                where.append("REPLACE(file_path, '\\\\', '/') LIKE ?");
+            }
+            where.append(")");
         }
 
-        for (int i = 0; i < query.getColorTerms().size(); i++) {
-            where.append(" AND is_image_file = TRUE AND dominant_color = ?");
+        for (String term : query.getColorTerms()) {
+            where.append(" AND is_image_file = TRUE AND (");
+            String[] parts = term.split("\\|");
+            for (int j = 0; j < parts.length; j++) {
+                if (j > 0) where.append(" OR ");
+                where.append("dominant_color = ?");
+            }
+            where.append(")");
         }
 
         String sql = """
@@ -148,28 +165,40 @@ public class SearchExecutor {
             int index = 1;
 
             for (String term : query.getGeneralTerms()) {
-                String like = "%" + normalizePathTerm(term) + "%";
-
-                stmt.setString(index++, like);
-                stmt.setString(index++, like);
-                stmt.setString(index++, like);
-                stmt.setString(index++, like);
+                String[] parts = term.split("\\|");
+                for (String part : parts) {
+                    String cleanPart = part.replace("*", "").trim();
+                    String like = "%" + cleanPart + "%";
+                    stmt.setString(index++, like);
+                    stmt.setString(index++, like);
+                }
             }
 
             for (String term : query.getContentTerms()) {
-                String like = "%" + term + "%";
-
-                stmt.setString(index++, like);
-                stmt.setString(index++, like);
+                String[] parts = term.split("\\|");
+                for (String part : parts) {
+                    String cleanPart = part.replace("*", "").trim();
+                    String like = "%" + cleanPart + "%";
+                    stmt.setString(index++, like);
+                    stmt.setString(index++, like);
+                }
             }
 
             for (String term : query.getPathTerms()) {
-                String like = "%" + normalizePathTerm(term) + "%";
-                stmt.setString(index++, like);
+                String[] parts = term.split("\\|");
+                for (String part : parts) {
+                    String cleanPart = part.replace("*", "").trim();
+                    String like = "%" + normalizePathTerm(cleanPart) + "%";
+                    stmt.setString(index++, like);
+                }
             }
 
             for (String term : query.getColorTerms()) {
-                stmt.setString(index++, term.toLowerCase());
+                String[] parts = term.split("\\|");
+                for (String part : parts) {
+                    String cleanPart = part.replace("*", "").trim();
+                    stmt.setString(index++, cleanPart.toLowerCase());
+                }
             }
 
             stmt.setInt(index, maxResults);

@@ -20,6 +20,7 @@ public class QueryEngine {
     private final RankingManager rankingManager;
     private final SearchSubject searchSubject;
     private final SearchHistoryService searchHistoryService;
+    private QueryBuilder queryBuilder;
 
     public QueryEngine() throws SQLException {
         this.parser = new QueryParser();
@@ -29,10 +30,12 @@ public class QueryEngine {
         this.searchHistoryService = new SearchHistoryService();
         this.searchSubject.addObserver(searchHistoryService);
         this.rankingManager = new RankingManager(searchHistoryService);
+        this.queryBuilder = new BaseQueryBuilder();
     }
 
     public List<SearchResult> query(String rawInput) throws SQLException {
-        QueryParser.ParsedQuery parsed = parser.parse(rawInput);
+        String processedQuery = queryBuilder.buildQuery(rawInput);
+        QueryParser.ParsedQuery parsed = parser.parse(processedQuery);
         if (parsed == null) return new ArrayList<>();
 
         List<FileRecord> files = executor.search(parsed);
@@ -81,6 +84,14 @@ public class QueryEngine {
 
     public List<String> suggestQueriesFuzzy(String partialQuery) {
         return searchHistoryService.suggestQueriesFuzzy(partialQuery);
+    }
+
+    public void setQueryBuilder(QueryBuilder queryBuilder) {
+        this.queryBuilder = queryBuilder;
+    }
+
+    public QueryBuilder getQueryBuilder() {
+        return this.queryBuilder;
     }
 
 }
