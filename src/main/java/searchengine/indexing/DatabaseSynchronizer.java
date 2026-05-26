@@ -88,6 +88,28 @@ public class DatabaseSynchronizer {
         }
     }
 
+    public synchronized void syncOne(FileRecord record, LocalDateTime dbModified) throws SQLException {
+        String path = record.getFilePath();
+        if (dbModified == null) {
+            insert(record);
+            inserted++;
+        } else if (record.getLastModified() != null && !record.getLastModified().equals(dbModified)) {
+            update(record);
+            updated++;
+        } else {
+            skipped++;
+        }
+    }
+
+    public synchronized void deleteOne(String path) throws SQLException {
+        delete(path);
+        deleted++;
+    }
+
+    public synchronized void incrementErrors() {
+        errors++;
+    }
+
     //I2 s2 added path score
     private void insert(FileRecord r) throws SQLException {
         String sql = """
