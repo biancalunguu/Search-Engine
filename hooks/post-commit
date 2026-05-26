@@ -1,0 +1,27 @@
+#!/bin/sh
+# Post-commit hook: prints a friendly summary after each successful commit.
+# Shows the commit hash, message, author, branch, and a reminder to push.
+#
+# HOW TO INSTALL:
+#   Copy this file to .git/hooks/post-commit
+#   (On Linux/Mac also run: chmod +x .git/hooks/post-commit)
+
+HASH=$(git log -1 --format="%h")
+MSG=$(git log -1 --format="%s")
+AUTHOR=$(git log -1 --format="%an")
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+DATE=$(git log -1 --format="%cd" --date=format:"%Y-%m-%d %H:%M")
+
+echo ""
+echo "--- [post-commit] ✔ Commit recorded successfully!"
+echo "----------------------------------------------------"
+echo "  Branch  : $BRANCH"
+echo "  Commit  : $HASH"
+echo "  Author  : $AUTHOR"
+echo "  Date    : $DATE"
+echo "  Message : $MSG"
+echo "----------------------------------------------------"
+echo "  Reminder: Don't forget to push when ready:"
+echo "    git push origin $BRANCH"
+echo ""
+exit 0

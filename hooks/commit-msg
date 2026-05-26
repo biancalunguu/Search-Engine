@@ -1,0 +1,56 @@
+#!/bin/sh
+# Commit-msg hook: enforces commit message quality rules.
+# Rejects commits if the message is too short, starts with lowercase,
+# or is left as a generic placeholder.
+#
+# HOW TO INSTALL:
+#   Copy this file to .git/hooks/commit-msg
+#   (On Linux/Mac also run: chmod +x .git/hooks/commit-msg)
+
+COMMIT_MSG_FILE="$1"
+COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+# Strip comment lines (lines starting with #)
+STRIPPED_MSG=$(echo "$COMMIT_MSG" | grep -v '^#' | sed '/^$/d')
+
+# Rule 1: Message must not be empty
+if [ -z "$STRIPPED_MSG" ]; then
+    echo ""
+    echo "--- [commit-msg] COMMIT BLOCKED: Commit message must not be empty."
+    exit 1
+fi
+
+# Rule 2: Message must be at least 10 characters long
+MSG_LENGTH=$(echo "$STRIPPED_MSG" | head -1 | wc -c)
+if [ "$MSG_LENGTH" -lt 10 ]; then
+    echo ""
+    echo "--- [commit-msg] COMMIT BLOCKED: Commit message is too short (minimum 10 characters)."
+    echo "--- Please write a descriptive message explaining what this commit does."
+    exit 1
+fi
+
+# Rule 3: First word must start with an uppercase letter
+FIRST_CHAR=$(echo "$STRIPPED_MSG" | head -1 | cut -c1)
+case "$FIRST_CHAR" in
+    [A-Z]) ;;
+    *)
+        echo ""
+        echo "--- [commit-msg] COMMIT BLOCKED: Commit message must start with an uppercase letter."
+        echo "--- Example: \"Add parallel indexing support\" instead of \"add parallel indexing support\""
+        exit 1
+        ;;
+esac
+
+# Rule 4: Message must not be a generic placeholder
+LOWER_MSG=$(echo "$STRIPPED_MSG" | head -1 | tr '[:upper:]' '[:lower:]')
+for PLACEHOLDER in "fix" "fixes" "update" "updates" "wip" "test" "commit" "changes" "minor changes"; do
+    if [ "$LOWER_MSG" = "$PLACEHOLDER" ]; then
+        echo ""
+        echo "--- [commit-msg] COMMIT BLOCKED: \"$STRIPPED_MSG\" is too generic."
+        echo "--- Please write a meaningful message describing what changed and why."
+        exit 1
+    fi
+done
+
+echo "--- [commit-msg] Commit message is valid. Proceeding."
+exit 0
