@@ -1,0 +1,16 @@
+#!/bin/sh
+
+# 1. Run the maven compile command to check for errors
+mvn compile
+
+# 2. Check if the command above failed (non-zero exit status)
+if [ $? -ne 0 ]
+then
+    echo "Error: The project does not compile!"
+    echo "Please fix the compile errors before committing."
+    exit 1
+fi
+
+# 3. If everything is fine, allow the commit
+echo "Success: Project compiles successfully!"
+exit 0

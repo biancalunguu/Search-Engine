@@ -8,6 +8,7 @@ import javafx.scene.Parent;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
+import searchengine.indexing.IndexingService;
 import searchengine.indexing.ParallelIndexingService;
 import searchengine.model.SearchResult;
 import searchengine.query.*;
@@ -306,6 +307,7 @@ public class SearchEngineApp {
         Thread indexingThread = new Thread(() -> {
             try {
                 ParallelIndexingService indexingService = new ParallelIndexingService();
+                //IndexingService indexingService = new IndexingService();
                 indexingService.run();
 
                 Platform.runLater(() -> {
